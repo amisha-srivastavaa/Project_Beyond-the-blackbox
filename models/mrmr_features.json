@@ -1,0 +1,18 @@
+{
+    "full_ranking": [
+        "relative_humidity_2m",
+        "is_summer",
+        "day_of_week",
+        "precipitation",
+        "surface_pressure",
+        "heat_index",
+        "month",
+        "cloud_cover",
+        "temperature_2m",
+        "wind_speed_10m",
+        "hour_of_day",
+        "is_monsoon",
+        "is_peak_hour"
+    ],
+    "note": "MRMR ranking saved for documentation. Original model kept."
+}

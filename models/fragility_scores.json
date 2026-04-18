@@ -1,0 +1,40 @@
+{
+    "method": "DISCOM distribution loss rates from UPERC/PFC FY 2023-24",
+    "baseline": "PVVNL (13.44% losses) as best performer benchmark",
+    "formula": "fragility = (discom_loss + city_adjustment) / baseline_loss, clamped [0.90, 1.40]",
+    "source": "Power Finance Corporation Annual Report, UPERC True-Up Orders FY 2023-24",
+    "discom_data": {
+        "PVVNL": {
+            "loss_pct": 13.44,
+            "rating": "A+",
+            "cities": [
+                "Noida",
+                "Ghaziabad",
+                "Meerut"
+            ]
+        },
+        "MVVNL": {
+            "loss_pct": 15.23,
+            "rating": "B-",
+            "cities": [
+                "Lucknow"
+            ]
+        },
+        "DVVNL": {
+            "loss_pct": 17.1,
+            "rating": "B-",
+            "cities": [
+                "Agra",
+                "Firozabad"
+            ]
+        }
+    },
+    "fragility_scores": {
+        "Noida": 0.93,
+        "Ghaziabad": 1.0,
+        "Meerut": 1.07,
+        "Lucknow": 1.13,
+        "Agra": 1.27,
+        "Firozabad": 1.4
+    }
+}

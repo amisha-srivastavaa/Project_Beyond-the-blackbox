@@ -1,0 +1,396 @@
+Smart Power Cut Prediction & Notification App
+Hackathon Project — Research & Planning Summary
+Focus Region: Uttar Pradesh & Delhi, India
+Prepared: April 2026  |  Phase 1: Research & Data Sourcing
+1. Project Overview
+This document summarises the research conducted for a hackathon project aimed at building an AI-powered application that predicts and notifies users of both scheduled and unscheduled power cuts in the Uttar Pradesh and Delhi regions of India. The document covers the project roadmap, research paper analysis, data sourcing strategy, model architecture decisions, and data collection approach.
+1.1 Project Goal
+Build an end-to-end system that:
+Predicts scheduled power cuts from UPPCL outage notices
+Predicts unscheduled power cuts by learning weather-to-grid-failure relationships
+Sends priority-based notifications to users based on prediction confidence
+Is deployable without requiring access to proprietary utility sensor data
+1.2 Full Project Roadmap
+Phase
+Focus
+Timeline
+Phase 1
+Research & data sourcing — analyze AI papers, identify datasets, understand model architectures
+Days 1–2
+Phase 2
+Data preparation — clean, merge, feature engineer weather and outage datasets
+Days 3–4
+Phase 3
+Model building — set up Python environment, train XGBoost classifier, evaluate and tune
+Days 5–7
+Phase 4
+Model deployment — wrap model in FastAPI, deploy to cloud (Render/Railway free tier)
+Days 8–9
+Phase 5
+Notification system — build priority engine, integrate Firebase/Twilio, build frontend dashboard
+Days 10–12
+1.3 Key Technology Decisions
+Primary ML model: XGBoost classifier (justified by Paper 1 — 98.4% accuracy)
+Feature selection: MRMR (Minimum Redundancy Maximum Relevance)
+Weather data: Open-Meteo API (free, no signup, historical since 1940)
+Scheduled outage data: UPPCL public notices (scraped)
+Unscheduled outage signal: CEA grid reports, POSOCO state data, public RTI data
+Deployment: FastAPI + Uvicorn + Docker on Render/Railway
+Notifications: Firebase Cloud Messaging or Twilio
+2. Research Landscape — Evolution of Power Outage Prediction Models
+The field of AI-powered power outage prediction has evolved significantly from simple statistical methods to sophisticated deep learning approaches. Understanding this evolution is essential for situating the project's architectural choices within the academic literature.
+2.1 Era 1 — Statistical Models (2005–2014)
+The earliest outage prediction models relied on Generalised Linear Models (GLM) and Generalised Additive Models (GAM). These are statistical techniques that assume a linear or smooth relationship between input variables (weather, geography) and the outage outcome. While interpretable, they fundamentally cannot capture the complex non-linear interactions between weather variables and grid failure. Average accuracy hovered around 70–80%.
+Key methods: GLM, GAM, logistic regression, Poisson regression
+Key limitation: linear assumptions cannot model non-linear weather-grid interactions
+Representative work: Liu et al. (2005, 2007, 2008) for North and South Carolina
+2.2 Era 2 — Ensemble Machine Learning (2014–2019)
+The introduction of ensemble methods — particularly Random Forest and AdaBoost — marked a significant accuracy improvement. These methods build many decision trees and combine their outputs (majority vote for classification, average for regression), which reduces overfitting and handles noisy data well. Average accuracy reached approximately 85–88%.
+Key methods: Random Forest, AdaBoost, Gradient Boosting, Bayesian Additive Regression Trees (BART)
+Representative work: Nateghi et al. (2014) using Random Forest for tropical cyclone outage prediction; Wanik et al. (2015) using tree-based models in New England
+Key limitation: models were calibrated to specific utility companies and geographic regions, limiting generalisability
+2.3 Era 3 — XGBoost with Feature Selection (2020–2023)
+XGBoost (Extreme Gradient Boosting) emerged as the dominant algorithm for tabular data prediction tasks, combining the power of gradient boosting with regularisation techniques that prevent overfitting. When paired with systematic feature selection (MRMR), XGBoost achieved accuracy levels above 97% on real utility datasets. This is the architecture being implemented in this project.
+Key methods: XGBoost, LightGBM, feature selection via MRMR, SHAP for interpretability
+Representative work: Ghasemkhani et al. (2024) — 98.4% accuracy on Turkish utility data; FE-XGBoost from ScienceDirect (2025)
+Key advantage: fast to train, handles mixed feature types, produces feature importance scores
+2.4 Era 4 — LSTM and Deep Learning (2023–2024)
+Long Short-Term Memory (LSTM) networks — a type of recurrent neural network designed for sequential time-series data — have been shown to outperform classical ensemble methods on large, temporally rich datasets. LSTM can remember patterns across time windows (e.g., that outages the previous evening increase risk the following morning), which XGBoost cannot do natively. The trade-off is that LSTM requires significantly more data and computational resources to train.
+Key methods: LSTM, RNN, MLP (Multi-Layer Perceptron), CNN-LSTM hybrid
+Representative work: Fatehi et al. / Wayne State (2024/2025) — LSTM outperformed RF, AdaBoost, SVM, and GNN on Michigan county data
+Architecture detail: one-layer LSTM with 128 nodes, Adam optimiser, learning rate 0.001, batch size 128
+Role in this project: stretch goal — LSTM layer added on top of XGBoost if time allows, creating an LSTM-XGBoost hybrid
+2.5 Era 5 — Graph Neural Networks (2024–2025, cutting edge)
+The most recent research uses Graph Neural Networks (GNNs) to model the spatial cascade of power outages — when one substation fails, it increases load on neighbouring substations, which may then fail. GNNs represent the power grid as a graph (nodes = substations, edges = transmission lines) and can model these dynamic spatial dependencies.
+Key methods: GNN, Graph Attention Networks (GAT), spatially aware hybrid GNN with contrastive learning
+Representative work: arXiv 2604.04916 (April 2025) — spatially aware hybrid GNN with contrastive learning
+Role in this project: reference material and 'future work' section of hackathon presentation only — not implemented
+3. Detailed Paper Analysis
+3.1 Paper 1 — XGBoost for Power Outage Duration Prediction
+Field
+Detail
+Relevance to This Project
+Full title
+Machine Learning Model Development to Predict Power Outage Duration (POD): A Case Study for Electric Utilities
+Primary architectural blueprint
+Authors
+Ghasemkhani, Kut, Yilmaz, Birant, Arikök, Güzelyol, Kut
+University + utility company collaboration
+Published
+MDPI Sensors, July 2, 2024
+Recent, peer-reviewed, open access
+DOI
+10.3390/s24134313
+Freely readable at mdpi.com/1424-8220/24/13/4313
+PMC ID
+PMC11244009
+Also accessible at pmc.ncbi.nlm.nih.gov/articles/PMC11244009/
+3.1.1 Problem Statement
+A Turkish electric utility company (GDZ Elektrik, Izmir) needed to predict how long a power outage would last from the moment it was detected. Existing methods — manual estimation and simple statistical averages — were inaccurate and delayed crew deployment decisions. The authors framed this as a machine learning classification problem with four target classes: Very Short, Short, Medium, and Long outage duration.
+3.1.2 Why Classification, Not Regression
+A critical methodological choice was to frame outage duration as a classification problem (four bins) rather than a regression problem (predicting an exact number of minutes). The justification: utility crews do not need to know '2.73 hours' — they need to know 'medium outage, dispatch Team B.' Discrete categories map directly to operational action plans. This project adopts the same approach: output classes are No Outage (0), Scheduled Outage (1), and Unscheduled Outage (2).
+3.1.3 Data Sources and Features
+Data was provided directly by GDZ Elektrik through a university-industry research partnership. Two categories of data were used:
+Sensor-based data: voltage readings, current levels, relay fault signals, equipment temperature sensors installed on grid infrastructure
+Non-sensor-based data: outage log timestamps, geographic location (feeder, district), cause code (weather / equipment / human error / planned maintenance), number of customers affected, weather conditions at time of outage, time of day, day of week, season
+Test datasets spanned four seasonal periods in 2023–2024 to validate cross-season generalisability: February–May 2023, March–July 2023, August–September 2023, and March 2024, comprising between 3,743 and 29,873 instances per period.
+3.1.4 Models Compared
+Algorithm
+Mechanism
+Accuracy Achieved
+Decision Tree (DT)
+Recursive yes/no question flowchart until a leaf node is reached. Simple, highly interpretable, but prone to overfitting.
+~84%
+Random Forest (RF)
+Builds hundreds of decision trees on random subsets of data and features; takes a majority vote. Robust to noise, reduces overfitting.
+~86%
+K-Nearest Neighbours (KNN)
+For each new instance, finds the K most similar historical outages and copies their outcome. Intuitive but slow at prediction time and sensitive to irrelevant features.
+~82%
+XGBoost (winner)
+Gradient boosting: builds trees sequentially, each one correcting the errors of the previous. Uses regularisation to prevent overfitting. Fastest and most accurate.
+98.4%
+3.1.5 What XGBoost Is and How It Works
+XGBoost stands for Extreme Gradient Boosting. The core idea is boosting: instead of training one large model, XGBoost trains a sequence of small decision trees, where each new tree focuses specifically on the errors (residuals) that previous trees got wrong. The 'gradient' refers to the mathematical technique used — gradient descent — to find the optimal correction direction at each step. 'Extreme' refers to the regularisation (L1 and L2 penalties) that prevent the trees from memorising training data.
+Key hyperparameters tuned in the paper (and to be tuned in this project):
+learning_rate: how large a correction each new tree makes. Smaller = slower, more precise learning
+max_depth: how many levels deep each individual tree grows. Deeper = can capture more complex patterns but risks overfitting
+min_child_weight: minimum number of data points required in a leaf node. Higher = simpler, more generalisable trees
+n_estimators: total number of trees to build in the sequence
+objective function: the mathematical loss function being minimised (multi-class cross-entropy for this project)
+3.1.6 MRMR Feature Selection
+Before training, the authors applied MRMR (Minimum Redundancy Maximum Relevance) to the full feature set. MRMR operates in two steps:
+Maximum Relevance: rank features by how strongly they correlate with the target label (outage duration class)
+Minimum Redundancy: from the high-relevance features, remove those that are too similar to each other (e.g., temperature in Celsius and temperature in Fahrenheit carry identical information)
+The output is a lean, non-redundant feature subset that improves model accuracy, reduces training time, and improves interpretability. This project will apply MRMR in Phase 3 using the Python package mrmr-selection.
+3.1.7 Results
+XGBoost with MRMR achieved 97.66–97.69% accuracy consistently across all four test periods, with Precision, Recall, and F1-Score all above 95.6%. This cross-period consistency demonstrates the model generalises across seasons — a critical requirement for UP/Delhi where summer (45°C+), monsoon, and winter create very different outage dynamics.
+3.1.8 Key Difference Between Paper 1 and This Project
+Aspect
+Paper 1 (Turkey, GDZ Elektrik)
+This Project (UP/Delhi, India)
+Prediction target
+How long will this outage last?
+Will an outage happen at all? (and is it scheduled or unscheduled?)
+Task type
+4-class classification (Very Short / Short / Medium / Long)
+3-class classification (No Cut / Scheduled / Unscheduled)
+Data source
+Proprietary utility sensor systems via research partnership
+UPPCL public notices + Open-Meteo API + CEA reports
+Trigger timing
+Outage has already started — model estimates duration
+Prediction made hours before — enables advance notification
+Output used for
+Crew dispatch and customer communication
+Priority-based push/SMS notifications to end users
+Sensor data available
+Yes — voltage, current, relay faults
+No — weather and public records only
+3.1.9 How to Cite This Paper in the Project
+Use Paper 1 to justify: (1) the choice of XGBoost as the primary algorithm, (2) the MRMR feature selection step, (3) the classification (not regression) framing of the prediction task, and (4) the multi-season testing methodology.
+Citation: Ghasemkhani, B., Kut, R.A., Yilmaz, R., Birant, D., Arikök, Y.A., Güzelyol, T.E., & Kut, T. (2024). Machine Learning Model Development to Predict Power Outage Duration (POD): A Case Study for Electric Utilities. Sensors, 24(13), 4313. https://doi.org/10.3390/s24134313
+3.2 Paper 2 — Deep Learning with Public Data Only
+Field
+Detail
+Relevance to This Project
+Full title
+Deep Learning-Based Weather-Related Power Outage Prediction with Socio-Economic and Power Infrastructure Data
+Validates public-data-only approach
+Authors
+Wang, Fatehi, Wang, Nazari (Wayne State University)
+Academic, no utility partnership required
+Published
+arXiv April 2024; IEEE PESGM 2024
+Recent, publicly accessible
+arXiv ID
+2404.03115
+Accessible at arxiv.org/abs/2404.03115
+Key finding
+All features sourced from publicly available data; model predicts hourly outage probability per census tract
+Directly validates this project's public-data strategy
+3.2.1 What This Paper Proves for This Project
+This paper is the single most important justification for the data strategy of this project. The authors built a deep learning model for hourly outage probability prediction using exclusively public data sources — weather data, infrastructure maps, socio-economic statistics, and historical outage records — all freely downloadable. No proprietary utility API access was required. This demolishes the objection that a hackathon project cannot build a credible outage prediction model without utility company data.
+3.2.2 Data Sources Used
+Weather: publicly available weather station data and weather forecasts
+Power infrastructure: OpenStreetMap power infrastructure layers (substations, transmission lines)
+Socio-economic: US Census Bureau demographic and income statistics at census tract level
+Outage records: DTE Energy's Outage Management System (collected every 15 minutes, Feb–Sep 2023)
+Indian equivalents: Open-Meteo for weather, data.gov.in infrastructure data, NITI Aayog ICED dashboard for socio-economic, UPPCL public notices for outage records.
+3.2.3 Key Finding — Socio-Economic Features Matter
+The paper found that including socio-economic features (population density, infrastructure age proxies, income levels) meaningfully improved prediction accuracy at the sub-regional level. For UP/Delhi, this maps to: dense, affluent localities like Noida Sector 62 or South Delhi have different outage risk profiles than peri-urban areas of eastern UP even under identical weather conditions. Encoding region characteristics as features is therefore important.
+3.2.4 Citation
+Wang, X., Fatehi, N., Wang, C., & Nazari, M.H. (2024). Deep Learning-Based Weather-Related Power Outage Prediction with Socio-Economic and Power Infrastructure Data. IEEE Power & Energy Society General Meeting (PESGM) 2024. arXiv:2404.03115.
+3.3 Paper 3 — Weather Variables to Grid State via SVM
+Field
+Detail
+Relevance to This Project
+Full title
+Data-Driven Prediction Method for Power Grid State Subjected to Heavy-Rain Hazards
+Justifies weather-only features; cost-sensitive learning
+Published
+MDPI Applied Sciences, July 2020
+Foundational methodology paper
+URL
+mdpi.com/2076-3417/10/14/4693
+Open access
+Key method
+Cost-sensitive SVM model trained on local weather + grid outage data
+Validates common weather variables as sufficient predictors
+Key finding
+Multiple common weather variables are significant predictors even under heavy rain conditions
+Justifies Open-Meteo features as sufficient input
+3.3.1 Core Idea — Cost-Sensitive Learning
+Standard ML models optimise for overall accuracy — they treat all mistakes equally. A cost-sensitive model assigns different penalties to different types of errors. In the context of power outage prediction:
+Missing a real outage (false negative) = very bad: user not warned, consequences severe
+Issuing a false alarm (false positive) = less bad: user gets an unnecessary notification, minor inconvenience
+Cost-sensitive training tells the model: 'treat missing a real outage as 5× worse than a false alarm.' This directly maps to this project's notification priority system — a P1 (confirmed scheduled) or P2 (high unscheduled risk) missed notification is far worse than a spurious P3 low-risk alert.
+3.3.2 What Weather Features They Used
+The study deliberately used only common weather forecast variables — variables available from any public weather API — to ensure real-world deployability:
+Rainfall intensity (mm/hr)
+Wind speed (km/h)
+Temperature (°C)
+Humidity (%)
+Weather forecast horizon (3-hour intervals)
+The Indian equivalents from Open-Meteo: precipitation, wind_speed_10m, temperature_2m, relative_humidity_2m, all available at hourly resolution for any latitude/longitude coordinate.
+3.3.3 Citation
+Jeong, J., Kim, D., & Kim, H. (2020). Data-Driven Prediction Method for Power Grid State Subjected to Heavy-Rain Hazards. Applied Sciences, 10(14), 4693. https://doi.org/10.3390/app10144693
+3.4 Paper 4 — LSTM Outperforms All Ensemble Methods
+Field
+Detail
+Relevance to This Project
+Full title
+Predictive Modeling of Power Outages during Extreme Events: Integrating Weather and Socio-Economic Factors
+Justifies LSTM as stretch goal upgrade
+Authors
+Fatehi, Biswas, Nazari (Wayne State University)
+Same group as Paper 2
+Published
+arXiv December 2024
+Very recent — arxiv.org/abs/2512.22699
+Dataset
+EAGLE-I outage records 2014–2024 across Michigan counties, updated every 15 minutes
+10-year large-scale validation
+Key finding
+Among RF, GNN, AdaBoost, and LSTM — LSTM achieves highest accuracy
+Motivates hybrid LSTM-XGBoost as Phase 3 stretch goal
+3.4.1 What LSTM Is and Why It Beats XGBoost on Temporal Data
+LSTM (Long Short-Term Memory) is a type of recurrent neural network specifically designed for sequential data. Unlike XGBoost — which treats each row in the dataset as independent — LSTM maintains a 'memory' of previous time steps. This means it can learn patterns like: 'if there was an outage at 6pm yesterday AND the temperature today is 44°C AND wind speed is rising, the probability of an outage at 5pm today is elevated.'
+XGBoost cannot learn this type of temporal dependency natively. LSTM can — but it requires far more training data and is harder to tune. For a hackathon timeline and limited data, XGBoost is the correct starting point.
+3.4.2 LSTM Architecture Used in the Paper
+Architecture: one-layer LSTM with 128 nodes followed by a Dense output layer
+Activation: tanh for cell state, sigmoid for gating mechanisms (standard LSTM)
+Optimiser: Adam with learning rate = 0.001
+Batch size: 128
+Data split: 2014–2018 training, 2019 validation, 2020–2021 test
+Implementation: TensorFlow/Keras (Python)
+This architecture will be replicated in Phase 3 if time allows, after the XGBoost baseline is working.
+3.4.3 The LSTM-XGBoost Hybrid
+The most practical implementation for this project is a hybrid: LSTM processes the time-series weather and historical outage sequence for each region and produces a temporal embedding (a compressed numerical representation of the temporal pattern). XGBoost then takes this embedding plus static features (region code, time of day, season) and produces the final classification. This hybrid has been shown to outperform both standalone models.
+Reference for hybrid approach: MDPI Energies (2025) — 'Optimising Smart Grid Load Forecasting via a Hybrid LSTM-XGBoost Framework': RMSE 106.54 MW, MAPE 1.18%, R² 0.994.
+3.4.4 Citation
+Fatehi, N., Biswas, A.K., & Nazari, M.H. (2024). Predictive Modeling of Power Outages during Extreme Events: Integrating Weather and Socio-Economic Factors. arXiv:2512.22699.
+3.5 Paper 5 — Graph Neural Networks (Reference/Future Work)
+Field
+Detail
+Relevance to This Project
+Full title
+Empowering Power Outage Prediction with Spatially Aware Hybrid Graph Neural Networks and Contrastive Learning
+Future work / presentation reference
+Published
+arXiv April 2025 (very recent)
+arxiv.org/html/2604.04916v1
+Key method
+Hybrid GNN combining static geographic graph with dynamic event-specific spatial interactions
+Cutting edge — not implemented in this project
+Key insight
+Outages cascade spatially — a failure in one substation increases load and failure risk in adjacent ones
+Motivates future region-level risk propagation feature
+3.5.1 Why GNNs Are Not Implemented (But Still Referenced)
+Graph Neural Networks require: (1) a detailed map of the power grid topology (substations as nodes, transmission lines as edges), (2) large amounts of spatially labelled outage data, and (3) significantly more engineering complexity than XGBoost or LSTM. None of these are feasible within a hackathon timeline. However, citing this paper in the project presentation demonstrates awareness of the state of the art and provides a compelling 'Version 2.0' future direction.
+3.5.2 The Key Insight to Reference
+The paper's central finding: static graph structures (fixed geographic proximity between substations) are insufficient. When a storm moves across a region, the spatial dependencies between locations are dynamic and event-specific — a substation 50km away that shares storm exposure is more relevant than an adjacent one on a different feeder. This motivates future work on dynamic regional risk modelling for UP/Delhi.
+3.5.3 Citation
+Chen, Z. et al. (2025). Empowering Power Outage Prediction with Spatially Aware Hybrid Graph Neural Networks and Contrastive Learning. arXiv:2604.04916. (Published April 7, 2025.)
+4. Data Sourcing Strategy
+4.1 The Core Challenge
+Academic papers like Paper 1 obtained high-quality proprietary data through formal university-industry partnerships, with utility company employees as co-authors. This is not available for a hackathon project. The strategy adopted here — building on the methodology validated by Paper 2 (Wang et al., 2024) — is to use exclusively public data sources, which makes the model more scalable and the approach more defensible.
+4.2 Three-Layer Data Architecture
+Layer 1 — Scheduled Outage Data (UPPCL Public Notices)
+UPPCL (Uttar Pradesh Power Corporation Limited) and its distribution subsidiaries (PVVNL, DVVNL, PUVVNL, KESCO) publish scheduled maintenance outage notices publicly as PDFs and HTML tables on their respective websites and via SMS alerts. These provide structured information on: affected region/feeder, scheduled date, start and end time, and reason code (maintenance, new connection, emergency work).
+These notices are parsed and converted into training rows with label = 1 (Scheduled). This constitutes the cleanest, most reliable portion of the training data.
+Primary source: uppcl.org and subsidiary discom websites
+Secondary source: UPPCL mobile app outage notifications (can be logged manually)
+Format: PDF scraping with pdfplumber (Python), HTML parsing with BeautifulSoup
+Layer 2 — Weather Data (Open-Meteo API)
+Open-Meteo (open-meteo.com) provides free historical hourly weather data for any coordinate globally, going back to 1940, with no API key or registration required. It uses ERA5 reanalysis data from the European Centre for Medium-Range Weather Forecasts (ECMWF), which is the global gold standard for historical weather reconstruction.
+Coordinates to pull for UP/Delhi coverage:
+Lucknow: 26.85°N, 80.95°E
+Noida/Greater Noida: 28.53°N, 77.39°E
+Ghaziabad: 28.67°N, 77.43°E
+Agra: 27.18°N, 78.01°E
+Kanpur: 26.46°N, 80.35°E
+Meerut: 28.98°N, 77.71°E
+Variables to pull: temperature_2m, relative_humidity_2m, precipitation, wind_speed_10m, wind_direction_10m, cloud_cover, et0_fao_evapotranspiration (heat stress proxy), surface_pressure.
+Layer 3 — Unscheduled Outage Signal (Public Reports)
+Unscheduled outages are harder to label without utility sensor data. Three proxy sources are used:
+Central Electricity Authority (CEA) annual reports — cea.nic.in publishes 'Growth of Electricity Sector in India' annually with state-level grid disturbance statistics including frequency and cause of unplanned interruptions
+POSOCO/NLDC regional energy reports — the national load despatch centre publishes monthly reports with state-level grid incident data, available at nldc.in
+News and social media cross-referencing — for a small manually-labelled seed dataset, news reports of major UP power crises (e.g., June 2023 UP power crisis) combined with weather data from those exact dates provide clean positive examples of unscheduled outage events
+Technique: weak supervision — the model is trained on a large weakly-labelled dataset (probabilistic labels from CEA frequency data) plus a small cleanly-labelled seed dataset (manually verified from news reports). This is an accepted academic methodology for situations where ground truth labels are scarce.
+4.3 Final Dataset Structure
+Each row in the training dataset represents one hour in one region. Columns:
+Column
+Source
+Type
+region_id
+Encoded from UPPCL feeder map
+Categorical
+hour_of_day
+Derived from timestamp
+Integer 0–23
+day_of_week
+Derived from timestamp
+Integer 0–6
+month
+Derived from timestamp
+Integer 1–12
+is_summer (Apr–Jun)
+Engineered from month
+Binary
+is_monsoon (Jul–Sep)
+Engineered from month
+Binary
+is_peak_hour (6–10am, 6–10pm)
+Engineered from hour
+Binary
+temperature_2m
+Open-Meteo
+Float °C
+relative_humidity_2m
+Open-Meteo
+Float %
+precipitation
+Open-Meteo
+Float mm/hr
+wind_speed_10m
+Open-Meteo
+Float km/h
+cloud_cover
+Open-Meteo
+Float %
+heat_index
+Engineered from temp + humidity
+Float °C
+days_since_last_outage
+Computed from outage log
+Integer
+rolling_7d_outage_count
+Computed from outage log
+Integer
+label
+UPPCL notices + CEA reports
+0 = No cut, 1 = Scheduled, 2 = Unscheduled
+4.4 Presentation Framing
+The data limitation relative to academic papers (no proprietary sensor data) is reframed as a design advantage in the hackathon presentation:
+'Unlike academic studies that rely on exclusive utility partnerships, this system is deliberately designed to work entirely on public data — Open-Meteo weather APIs, UPPCL published outage schedules, and CEA grid reports. This means the model can be deployed in any Indian city without requiring discom cooperation, making it genuinely scalable to all 28 states.'
+5. Complete Reference List
+5.1 Primary Research Papers (Analysed in Detail)
+Ghasemkhani, B., Kut, R.A., Yilmaz, R., Birant, D., Arikök, Y.A., Güzelyol, T.E., & Kut, T. (2024). Machine Learning Model Development to Predict Power Outage Duration (POD): A Case Study for Electric Utilities.. Sensors, 24(13), 4313.. DOI/URL: https://doi.org/10.3390/s24134313 | PMC: pmc.ncbi.nlm.nih.gov/articles/PMC11244009/ | Relevance: PRIMARY BLUEPRINT — justifies XGBoost + MRMR architecture, classification framing, cross-season validation
+Wang, X., Fatehi, N., Wang, C., & Nazari, M.H. (2024). Deep Learning-Based Weather-Related Power Outage Prediction with Socio-Economic and Power Infrastructure Data.. IEEE Power & Energy Society General Meeting (PESGM) 2024.. DOI/URL: https://arxiv.org/abs/2404.03115 | Relevance: Validates public-data-only approach; justifies inclusion of socio-economic/regional features
+Jeong, J., Kim, D., & Kim, H. (2020). Data-Driven Prediction Method for Power Grid State Subjected to Heavy-Rain Hazards.. Applied Sciences, 10(14), 4693.. DOI/URL: https://doi.org/10.3390/app10144693 | Relevance: Justifies common weather variables as sufficient; justifies cost-sensitive learning for notification priority
+Fatehi, N., Biswas, A.K., & Nazari, M.H. (2024). Predictive Modeling of Power Outages during Extreme Events: Integrating Weather and Socio-Economic Factors.. arXiv preprint.. DOI/URL: https://arxiv.org/abs/2512.22699 | Relevance: Justifies LSTM as upgrade path; provides architecture details for LSTM-XGBoost hybrid
+Chen, Z. et al. (2025). Empowering Power Outage Prediction with Spatially Aware Hybrid Graph Neural Networks and Contrastive Learning.. arXiv preprint.. DOI/URL: https://arxiv.org/html/2604.04916v1 | Relevance: Future work reference; demonstrates state-of-the-art spatial cascade modelling
+5.2 Supporting Papers (Referenced in Research Survey)
+Fatima, K., Shareef, H., Costa, F., Bajwa, A., & Wong, L. (2024). Machine learning for power outage prediction during hurricanes: An extensive review.. Engineering Applications of Artificial Intelligence, 133, 108056.. DOI/URL: https://doi.org/10.1016/j.engappai.2024.108056 | Relevance: Comprehensive review of ML techniques; survey of 55 published outage prediction models
+Arora, P. & Ceferino, L. (2023). Probabilistic and machine learning methods for uncertainty quantification in power outage prediction due to extreme events.. Natural Hazards and Earth System Sciences, 23, 1665–1683.. DOI/URL: https://doi.org/10.5194/nhess-23-1665-2023 | Relevance: GLM/GAM/Random Forest validation across multiple US utility regions and hurricane events
+Nateghi, R. et al. (2014). Multi-hazard outage prediction models for the US Gulf Coast.. IEEE Transactions on Power Systems.. DOI/URL: Referenced in multiple survey papers | Relevance: Foundational Random Forest application for tropical cyclone outage prediction
+Huang, W., Zhang, W., Chen, Q., Feng, B., & Li, X. (2024). Prediction algorithm for power outage areas of affected customers based on CNN-LSTM.. IEEE Access.. DOI/URL: Referenced in arXiv:2512.22699 | Relevance: CNN-LSTM hybrid for spatial outage area prediction
+5.3 Data Sources
+Open-Meteo Historical Weather API — open-meteo.com/en/docs/historical-weather-api — Free, no signup, hourly ERA5 reanalysis data globally since 1940
+Central Electricity Authority — cea.nic.in — Annual 'Growth of Electricity Sector in India' reports with state-level grid disturbance statistics
+POSOCO/NLDC — nldc.in — Monthly regional energy reports with state-level grid incident data
+India Open Government Data Platform — data.gov.in — Datasets published by MNRE, CEA, and state discoms
+NITI Aayog India Climate & Energy Dashboard (ICED) — iced.niti.gov.in — State-level electricity, climate, and infrastructure data
+Ember India Energy Data Explorer — ember-energy.org — State-level generation and capacity data
+GridLab India Weather Dataset — gridlab.org/india_weatherdata — 5km resolution weather data 2015–2024, CC-BY-NC-4.0 licence
+UPPCL Consumer Portal — uppcl.org — Scheduled outage notices and complaint data
+IMD Data Supply Portal — dsp.imdpune.gov.in — Official IMD historical weather data (requires registration)
+6. Glossary of Key Terms
+XGBoost (Extreme Gradient Boosting): A machine learning algorithm that trains a sequence of decision trees, each one correcting the errors of the previous. Uses gradient descent and regularisation. Dominant algorithm for tabular data classification tasks.
+MRMR (Minimum Redundancy Maximum Relevance): A feature selection algorithm that selects the most predictive input features while removing redundant ones. Applied before model training to improve accuracy and interpretability.
+LSTM (Long Short-Term Memory): A type of recurrent neural network designed for sequential time-series data. Maintains a memory of previous time steps, enabling it to learn temporal patterns that XGBoost cannot.
+Classification: A machine learning task where the model predicts a discrete category (e.g., No Cut / Scheduled / Unscheduled) rather than a continuous number. Contrasted with regression.
+Regression: A machine learning task where the model predicts a continuous number (e.g., outage duration in minutes). Paper 1 deliberately chose classification over regression for operational reasons.
+Cost-Sensitive Learning: Training a model with asymmetric error penalties — missing a real outage is penalised more heavily than issuing a false alarm. Directly maps to the P1/P2/P3 notification priority system.
+Weak Supervision: Training a model on probabilistic or noisy labels derived from proxy sources, rather than perfectly clean ground truth labels. Used here for the unscheduled outage labels derived from CEA frequency data.
+Feature Engineering: The process of creating new input variables from raw data that help the model make better predictions (e.g., computing a heat index from temperature + humidity, or a 'rolling 7-day outage count' from the outage log).
+ERA5: The European Centre for Medium-Range Weather Forecasts (ECMWF) global atmospheric reanalysis dataset, used by Open-Meteo. Considered the gold standard for historical weather reconstruction.
+Precision: Of all the times the model predicted 'outage', how often was there actually an outage? High precision = few false alarms.
+Recall: Of all the actual outages, how many did the model catch? High recall = few missed warnings. The more critical metric for a notification system.
+F1-Score: The harmonic mean of Precision and Recall. The single best number for evaluating a classifier when both false alarms and missed detections matter.
+Hyperparameter: A configuration setting of a machine learning model that must be set before training (e.g., learning_rate, max_depth). Tuned using grid search or Bayesian optimisation.
+Overfitting: When a model memorises the training data instead of learning generalisable patterns. It performs excellently on training data but poorly on new, unseen data. Prevented by regularisation and MRMR feature selection.
+UPPCL: Uttar Pradesh Power Corporation Limited — the state-owned electricity utility responsible for power distribution across Uttar Pradesh. Its subsidiaries include PVVNL, DVVNL, PUVVNL, and KESCO.
+CEA: Central Electricity Authority — the statutory body under India's Ministry of Power that publishes national electricity statistics, grid performance data, and technical standards.
+Smart Power Cut Prediction App — Research Summary | Phase 1 Complete | April 2026

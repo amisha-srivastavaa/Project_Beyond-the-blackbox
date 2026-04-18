@@ -1,0 +1,25 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Large data files (too big for GitHub — share via Google Drive/OneDrive)
+data/*.csv
+data/*.xlsx
+data/*.pdf
+
+# Model files (large binary — share separately if needed)
+models/xgboost_model.json
+models/xgboost_model_v2.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

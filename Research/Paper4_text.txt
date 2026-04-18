@@ -1,0 +1,911 @@
+Predictive Modeling of Power Outages during Extreme
+Events: Integrating Weather and Socio-Economic Factors
+Antar Kumar Biswas and Masoud H. Nazari∗
+Department of Electrical and Computer Engineering, Wayne State University, Detroit, Michigan.
+Abstract
+This paper presents a novel learning-based framework for predicting power out-
+ages caused by extreme events.
+The proposed approach specifically targets low-
+probability, high-consequence outage scenarios and leverages a comprehensive set of
+features derived from publicly available data sources. We integrate EAGLE-I out-
+age records (2014–2024) with weather, socio-economic, infrastructure, and seasonal
+event data. Incorporating social and demographic indicators reveals underlying pat-
+terns of community vulnerability and provides a clearer understanding of outage risk
+during extreme conditions. Four machine learning models—Random Forest (RF),
+Support Vector Machine (SVM), Adaptive Boosting (AdaBoost), and Long Short-
+Term Memory (LSTM) —are evaluated. Experimental validation is performed on a
+large-scale dataset covering counties in the lower peninsula of Michigan. Among all
+models tested, the LSTM network achieves the lowest prediction error. Addition-
+ally, the result demonstrates that stronger economic conditions and more developed
+infrastructure are associated with lower outage occurrence.
+Keywords:
+Power system resilience, power outage prediction, machine learning.
+1. Introduction
+Low-Probability High-Consequence (LPHC) events—such as floods, hurricanes,
+and winter storms—pose severe threats to power systems reliability and resilience.
+[1]. These events can cause large-scale blackouts and economic losses, as seen in
+∗Corresponding author: Masoud H. Nazari (email: masoud.nazari@wayne.edu)
+arXiv:2512.22699v1  [cs.LG]  27 Dec 2025
+Hurricane Sandy (2012), Irma (2017), and the 2021 Texas winter storm [2, 3, 4].
+Several studies has explored a wide range of modeling approaches to understand and
+predict the relationship between extreme weather conditions and outage occurrence.
+For example, Eskandarpour et al. [5] predicted component damage prior to hurri-
+canes by establishing decision boundaries using logistic regression. Spatial–temporal
+poisson regression has also been applied to model transmission line failure proba-
+bilities during severe weather events [6]. Although these methods offer clear in-
+terpretability, their linear assumptions limit their ability to capture the complex
+multi-variable interactions.
+ML models provide an effective framework to manage complex non-linear re-
+lationships and process substantial data volumes in real-time [7].
+These models
+outperform traditional statistical approaches due to their ability to model nonlin-
+earities and integrate diverse datasets, including weather, infrastructure, and socio-
+economic indicators. Classification-based ML studies such as [8, 9] used models like
+SVM and boosted classifiers to determine outage occurrence or component damage.
+Regression-based studies have used tree-based ensembles such as Decision Trees,
+RF, AdaBoost, and XGBoost to predict outage counts, durations, or affected cus-
+tomers [10, 11, 12]. Deep learning approaches further extend predictive capability
+by capturing temporal and sequential patterns in outage and weather data. Arif et
+al. [13] employed deep neural networks to estimate restoration times, and recurrent
+architectures such as recurrent neural networks (RNN) to model temporal outage
+progression under varying environmental conditions. These models offer strong pre-
+dictive performance but require large, high-quality datasets. Some studies examined
+on the outages driven by routine weather or equipment failures. Jaech et al. [14]
+applied RNN-based models with environmental and operational data to predict out-
+age duration in Seattle, while Sun et al. [15] used AdaBoost to estimate outage
+counts in Kansas. Sarwat et al. [16] showed that day-to-day weather conditions
+influence power outage. Our work focuses on LPHC events that generate large-scale
+2
+disruptions and require fundamentally different modeling considerations.
+The state-of-the-art studies often encounter challenges that can compromise the
+accuracy of their analyses. A major limitation is the scarcity of historical data on
+extreme events and the associated power outages. In particular, during such events,
+several monitoring devices may fail, resulting in incomplete and imbalanced datasets.
+In [17, 18, 19], Synthetic Minority Oversampling Technique (SMOTE) has been used
+to address data imbalance in classification tasks in power outage studies. However,
+SMOTE is effective for categorical targets, it is less productive for LPHC outage
+prediction, which is framed as a regression problem. Another limitations arises when
+models are trained on a single extreme event, as they exhibit limited adaptability to
+concurrent incidents with complex, multi-variable interactions [20]. As shown in [21],
+combining data from two winter storm events instead of one improves power outage
+prediction. Furthermore, socio-economic features are often missing in the previous
+models. As demonstrated in Cruz et al. [11], socio-economic indicators such as in-
+come levels and housing characteristics provide important context for understanding
+community vulnerability. Counties with lower income or higher unemployment tend
+to have fewer resources for preparedness, which can increase outage severity and
+prolong restoration times. Similar observations have been reported in other studies
+[13, 14], where result shows that socio-economic factors contribute to prolonged out-
+age durations and higher customer outage number. Incorporating socio-economic
+variables therefore enables a more comprehensive understanding of outage dynamics,
+supports improved prediction performance for LPHC events.
+In our prior work [19], we developed ML models to predict power outage prob-
+abilities, investigating the impact of socio-economic and infrastructure factors on
+non-LPHC outage events. This paper builds on those findings and proposes en-
+hanced methodologies to predict power outages due to extreme weather events. The
+contributions of this paper are outlined as follows:
+1) Comprehensive Data Integration: Our model combines weather, socio-economic,
+3
+and infrastructure data, along with seasonal indicators, to capture the complex fac-
+tors influencing power outages.
+This comprehensive integration significantly en-
+hances the predictive performance of the model.
+2) Innovative Use of SMOGN and KNN to Address Data Scarcity in LPHC
+Events: This work introduces the application of the Synthetic Minority Over-sampling
+Technique for Regression (SMOGN) and K-Nearest Neighbors (KNN) methods to
+mitigate data imbalance and missing data challenges associated with LPHC events.
+By adapting these techniques to the outage prediction context, the proposed frame-
+work effectively addresses data scarcity and improves the accuracy and robustness
+of LPHC event prediction.
+3) Evaluation of ML Models: We evaluate multiple ML and deep learning (DL)
+models, with LSTM proven particularly effective due to its ability to capture tempo-
+ral patterns in time-series data. This makes our model highly suited for real-world
+power outage forecasting.
+4) Large-Scale Validation: We validate our approach on a large-scale dataset
+spanning 2014 to 2022 across Michigan counties, ensuring the model’s robustness
+and generalizability to diverse geographic regions and socio-economic conditions.
+The remainder of the paper is structured as follows: Section II presents the data
+description and preparation. In section III, the methodology is discussed. Experi-
+mental setup is presented in section IV. The experimental results and discussion are
+provided in section V. Finally, the conclusion is drawn in section VI.
+2. Data Description and Preparation
+2.1. Historical Outage Data
+In this study, the EAGLE-I dataset is utilized to analyze severe power outages
+caused by LPHC events. The EAGLE-I dataset [22], collected and managed by Oak
+Ridge National Laboratory (ORNL), spans from November 2014 to December 2024.
+This dataset, updated every 15 minutes, aggregates data from utility companies’
+4
+Figure 1: Number of customers outage in Wayne County during 2024 based on
+EAGLE-1 dataset.
+public outage maps using an ETL (Extract, Transform, Load) process to estimate
+the number of customers affected by power outages in each county. For this analysis,
+we focus on the outage data relevant to Michigan. Fig. 1 illustrates the daily number
+of customer outages in Wayne County throughout 2024.
+In this context, a “customer" is defined as any entity that purchases energy
+from a utility under a specific tariff, rather than individual persons. Given that in
+the EAGLE-I, number of customers affected by power outage is recorded, and to
+ensure a fair comparison between counties with different sizes, it is crucial to adjust
+it for population differences. This can be done by collecting population data for
+each county from the U.S. Census Bureau2. This approach allows us to normalize
+outage data relative to population size. In this way, the number of customers in the
+EAGLE-I dataset is divided by the population of the county scaled by 2 as shown
+in (1).
+Po = Number of customers lost power ∗2
+Population of the county
+(1)
+It is estimated that, on average, each customer corresponds to approximately two
+residents [23].
+2https://data.census.gov/table
+5
+2.2. Historical Weather Data
+Historical hourly weather data was obtained from Open-Meteo, an open-source
+weather API that provides high-resolution meteorological information on an hourly
+basis 3. This data source serves as the dynamic variable of the model. For instance,
+weather data offers insights into conditions that could lead to outages, such as wind
+speed and temperature. We have chosen 8 features including air temperature (F),
+precipitation (inch), wind speed (km/h), wind gusts (km/h), shortwave radiation
+(W/m2), relative humidity (%), cloud cover (%), and surface pressure (hPa). The
+Fig. 2 shows the locations of weather stations across the Lower Peninsula of Michi-
+gan used in this study.
+The historical weather data often has missing data, particularly during LPHC
+events. To address this issue, we employ K-Nearest Neighbors (KNN) imputation
+method describe as follows:
+Algorithm 1 KNN Algorithm for Finding the Nearest Counties
+Input:
+k ←5 (Number of nearest counties to be found)
+Si ←Stationi (Find the k nearest counties of Si)
+(xi, yi) (Coordinates of Si)
+Dij (Euclidean distance between Si and Sj)
+Procedure:
+for k = 1, . . . , j do
+Calculate Dij between Si and Sj using equation (2)
+Sort distances between Si and all other counties in descending order
+Select the first k closest counties to Si
+end for
+Output: 5 nearest counties to Si
+For a given countyi, the k closest counties are determined by calculating the
+Euclidean distance between countyi and every other county, as described in (2).
+Euclidean Distance(Si, Sj) =
+q
+(xi −xj)2 + (yi −yj)2
+(2)
+3https:https://open-meteo.com/
+6
+where (xi, yi) and (xj, yj) represent the coordinates of counties Si and Sj, respec-
+tively. Then, impute the missing data by averaging the selected neighbors:
+Missing V alue = 1
+j
+j
+X
+i=1
+Observed valuei
+(3)
+where j represents the number of nearest counties considered for the imputation,
+identified by the K-Nearest Neighbors (KNN) algorithm [24]. Finally, the dataset is
+normalized using min-max scaler.
+Figure 2: Weather stations locations in Lower Peninsula of Michigan.
+2.3. Socio-economic Data
+Socio-economic indicators provide meaningful insights into community vulnera-
+bility and resilience. This hidden knowledge is instrumental in understanding factors
+that are not immediately obvious from basic data analysis. For this study, socio-
+economic indicators were obtained from the U.S. Census Bureau, including the dis-
+tribution of the year when residential structures were built, the average household
+income, and the county-level unemployment rate. The selected data was retrieved
+from the U.S. Census Bureau American Community Survey (ACS) 5-Year Estimates
+via the Census API. 4
+The distribution of the year when residential structures were built reflects the
+4https://api.census.gov/data/2021/acs/acs5
+7
+age and durability of the electric infrastructure.
+Average household income and
+unemployment capture the economic capacity and stress of a community, influencing
+both infrastructure investment and the speed of recovery from extreme weather
+events. Together, these factors complement power infrastructure data by capturing
+socio-economic conditions that influence outage occurrence and restoration.
+2.4. Power Infrastructure Data
+The infrastructure features, including the number of poles, towers, substations,
+transformers, and lines for each county, are collected from the Open Street Map
+dataset [25] as shown in Fig. 3. Given that the detailed topology of the power
+distribution network is typically not publicly available, data from the Open Street
+Map can serve as a useful approximation of the actual topology for research purposes.
+Furthermore, they provide information on how extensively the system might be
+affected by extreme conditions such as high winds [26].
+For this study, the total number of each feature within a county is aggregated
+and then counted to provide a comprehensive overview of the area’s characteristics.
+Then, we perform column-wise normalization, where we divide the total number of
+each type of infrastructure in a county by the sum of that feature across the entire
+state. This method allows us to determine which county has a higher proportion of
+a particular infrastructure component, such as towers.
+Figure 3: Power infrastructure network of counties in Lower Peninsula of Michigan.
+8
+3. Data-driven Outage Prediction Algorithm
+The proposed multi-step county-level power outage prediction algorithm is illus-
+trated in Fig. 4. The algorithm follows a four-step process. First, data preparation
+is performed, where different input features are preprocessed and integrated into a
+unified dataset. Second, the integrated dataset is rebalanced to reduce the impact
+of data imbalance and missing data. Third, multiple machine learning models are
+trained to capture the complex relationships between weather, socio-economic, and
+infrastructure factors and outage occurrence. Finally, the performance of the models
+is evaluated using standard metrics.
+EAGLE-I
+Data
+Weather Station 
+data
+Infrastructure 
+Data
+Socio-economic 
+Data
+Estimate Missing Data using 
+KNN and Apply SMOGN to 
+Balance the Dataset
+Predicted 
+Outage
+Outage 
+Prediction 
+Model
+Train-Test 
+Split
+Evaluate 
+Performance 
+Metrics
+Extreme 
+Weather 
+Filtration
+Data Preparation
+Dataset Balancing
+Evaluating
+Training & Testing
+Figure 4: The framework of the proposed power outage prediction algorithm.
+3.1. Identifying Extreme Weather Event Data
+The outage and weather dataset spans the period from 1 November 2014 to 30
+December 2024. Within this time frame, a total of 236 weather-related extreme out-
+age events were identified from the National Centers for Environmental Information
+(NOAA) 5. Fig. 5 illustrates the distribution of extreme weather events across 20
+Michigan counties.
+This distribution shows that extreme events are sparse. To address this lim-
+itation, seasonal information aligned with the timing of distinct extreme weather
+5https://www.ncdc.noaa.gov/stormevents/
+9
+Figure 5: Number of Extreme Events by County (2014–2024).
+patterns is incorporated. For a specified extreme event day (denoted as dex), we
+identify all days within the same season and include them in the set R. This is
+defined as:
+R = {d1, d2, . . . , dj} where dj ∈(mi−1, mi, mi+1)
+where, mi represents a month within a season, selected from the set M = {m1, m2, m3, . . . , m12}.
+The next step involves calculating the L2norm of the weather features between
+the extreme day (dex) and all other days in set R. This comparison helps identify
+days with weather patterns most similar to the extreme event day.
+Assume wdex is the matrix of weather features for the extreme day (comprising 8
+features, one for each weather features). The weather features for the j days are
+represented by the matrix Wd as follows:
+Wdex =
+
+w1dex
+w2dex
+· · ·
+w8dex
+
+Wd =
+
+
+
+
+
+
+
+
+
+w1d1
+w2d1
+· · ·
+w8d1
+w1d2
+w2d2
+· · ·
+w8d2
+...
+...
+...
+...
+w1dj
+w2dj
+· · ·
+w8dj
+
+
+
+
+
+
+
+
+
+(4)
+10
+The L2 norm between the row vector wdex of Wdex and each row vector wdj of Wd
+is calculated using the following formula:
+L2 norm(wdex, wdj) =
+v
+u
+u
+t
+8
+X
+k=1
+(wkdex −wkdj)2
+(5)
+Here, Wdex =
+
+w1dex
+w2dex
+· · ·
+w8dex
+
+is the row vector of extreme day’s
+weather features, Wdj =
+
+w1dj
+w2dj
+· · ·
+w8dj
+
+is the j-th row vector of Wd, wkdex
+and wkdj are the elements of Wdex and Wdj, respectively.
+Subsequently, the calculation is repeated for each row in the matrix Wd, cor-
+responding to each day dj within the set R. For each day, compute the L2 norm
+between the weather feature vector of the extreme day Wdex and that of the day dj,
+denoted as Wdj. This results in a j × 1 matrix where each element represents the
+L2norm between Wdex and Wdj. The process is outlined mathematically as follows:
+L2Norm =
+
+
+
+
+
+
+
+
+
+L2 norm(Wdex, Wd1)
+L2 norm(Wdex, Wd2)
+...
+L2 norm(Wdex, Wdj)
+
+
+
+
+
+
+
+
+
+(6)
+Finally, we select the weather features and outage data of days with the lowest
+L2norm from matrix L2Norm, indicating the highest similarity to the extreme
+event day. Incorporating these seasonal references significantly enhances the model’s
+ability to differentiate between various outages in the dataset. Then, the dataset is
+rebalanced and used to train the machine learning models described in the following
+subsections.
+3.2. Input Data Balancing
+A key challenge in predicting LPHC outages is the imbalance in outage data,
+where small-scale events dominate and large-scale extreme events are minority. This
+11
+Algorithm 2 SMOGN for Outage-Ratio Rebalancing
+Input:
+D ←Training dataset (hourly), with features X
+T ←Threshold of minority and majority instances
+k ←Number of nearest neighbors
+O% ←Percentage of over-sampling
+U% ←Percentage of under-sampling
+Partition:
+Smin ←yi ≥T (Minority instances)
+Smaj ←yi < T (Majority instances)
+/*Over-Sampling minority instances*/
+for S ∈Smin do
+ˆSmin ←|S| × O%
+for sample ∈S do
+KList ←k nearest neighbors of sample
+Distances ←distance between sample and each neighbor
+SafeRange ←0.5 × median(Distances)
+for i = 1 to ˆSmin do
+X ←randomly selected neighbor from KList
+if Distance(X, sample) < SafeRange then
+Xnew ←SMOTER interpolation
+else
+Xnew ←sample + Gaussian Noise
+end if
+Append Xnew to Dnew
+end for
+end for
+end for
+/*Under-Sampling majority cases*/
+for S ∈Smaj do
+under_sampled_instances ←randomly sample |S| × U% instances
+Append under_sampled_instances to Dnew
+end for
+Output: Rebalanced training set Dnew
+imbalance causes ML models to favor frequent low-impact cases, leading to poor
+performance on the critical but infrequent LPHC events. In order to balance the
+dataset, we apply SMOGN, which has been introduced to address the issue of imbal-
+anced datasets in regression tasks [27]. It integrates two over-sampling technique,
+SMOTER and SMOTER-GN [28]. While the L2norm filtering step extracts outages
+associated with extreme events, the SMOGN algorithm addresses the imbalance in
+12
+outage severity within these events. SMOGN generates synthetic data by applying
+three key techniques: random under-sampling, SMOTER (Synthetic Minority Over-
+sampling Technique for Regression), and adding Gaussian noise. Random under-
+sampling involves randomly removing samples from the majority class. It generates
+new synthetic samples by interpolating rare cases. This is done by taking a weighted
+average of the target variable values between the original minority instance and its
+k-nearest neighbors [28].
+Figure 6: Probability distribution of customer outages in the EAGLE-I dataset
+(2014–2024), shown before and after applying SMOGN.
+SMOGN is summarized in Algorithm 2: We mark a case as rare if its outage
+value is in the top 30% of the target distribution. A rarity threshold of 380 customers
+out was used and five nearest rare dataset neighbors were considered for SMOTER
+interpolation within a safe region. Also, Gaussian noise with perturbation 2% was
+added when neighbors lie outside the local safe range. Minority cases were oversam-
+pled approximately one-to-one, and the majority was undersampled to one half. Fig.
+6 shows the influence of SMOGN on the outage occurrence probability distribution
+for the extreme weather dataset used in the case study.
+The original dataset is dominated by small outages near zero, while the rebal-
+anced dataset includes more high-consequence outages. After rebalancing, probabil-
+ity is reduced in the low-outage region and increased in the mid/high-outage region
+beyond the threshold.
+13
+3.3. Model Selection and Training
+After the input data has been rebalanced, the following ML models are trained
+to capture its complex patterns:
+Random Forest (RF): RF for regression is an ensemble learning method that
+constructs multiple decision trees during training and outputs the average prediction
+of all trees for regression tasks. Each tree is trained on randomly selected subsets of
+data, reducing the correlation between trees and mitigating over-fitting. To predict
+customer outages number, a Random Forest Regressor was trained using weather
+and socio-economic features.
+The model is trained with 100 decision trees and
+evaluated on the same dataset.
+Support Vector Machine (SVM): SVM for regression identifies an optimal
+hyperplane in a higher-dimensional space that best fits the data while maximizing
+the distance from the nearest points. It minimizes errors, making it suitable for
+predicting continuous variables. SVM uses kernel functions to map the data into a
+space where these nonlinear patterns become easier to fit.
+Adaptive Boosting (AdaBoost): It is a boosting algorithm for regression
+which strengthens weak models by prioritizing harder-to-predict instances, refining
+the ensemble’s accuracy with each iteration.
+The final prediction is a weighted
+sum of the predictions from all weak learners, with weights determined based on
+their performance.
+Given the imbalanced nature of outage data, AdaBoost can
+concentrate learning on rare and high-impact outage conditions.
+Long Short-Term Memory (LSTM): LSTM networks are a type of RNN
+specialized in processing sequences of data. They are particularly effective for re-
+gression tasks involving time-series data due to their ability to capture temporal
+dependencies over different time intervals. In this study, historical weather, socio-
+economic, and infrastructure features are processed through the LSTM to capture
+patterns over time, followed by a dense output layer for outage prediction.
+14
+3.4. Performance Evaluation
+The following common performance metrics are used for models evaluation [29]:
+Mean Absolute Error (MAE): It measures the average deviation of the pre-
+dicted values from the actual observed values. It shows how far the model’s predic-
+tions are from the actual values on average.
+MAE = 1
+n
+n
+X
+i=1
+|Po(i) −
+ˆ
+Po(i)|
+(7)
+Mean Square Error (MSE): That metric measures the average of the squared
+differences between the estimated values and the actual observed values.
+Lower
+MSE indicates that the model is more consistent and accurate across the full range
+of observations.
+MSE = 1
+n
+n
+X
+i=1
+(Po(i) −
+ˆ
+Po(i))2
+(8)
+In both expressions, Po(i) denotes the actual observed value and
+ˆ
+Po(i) represents
+the predicted value.
+3.5. Outage Prediction Model Formulation
+With all relevant features integrated into the dataset, the problem is formulated
+as predicting county-level power outages under extreme events. Eq. 9 shows the
+model formulation.
+Po(t) = f
+ Po(t −1), Po(t −2), · · · , Po(t −n),
+W(t), W(t −1), · · · , W(t −n), S, If
+
+(9)
+Here, Po(t) denotes the ratio of customers without power in a county at time t during
+an extreme event, and Po(t −k) is the corresponding ratio observed during the k-th
+most recent extreme event. W(t) is the vector of contemporaneous weather features
+for the county, while W(t −k) contains the weather features recorded for the k-th
+15
+most recent event. S comprises socio-economic indicators, including average house-
+hold income, unemployment rate, and the distribution of year built for residential
+structures. If aggregates power-system attributes such as counts of poles, towers,
+substations, transformers, and line segments by county.
+4. Experimental Setup and Simulation Results
+The dataset is divided into training (2014 to 2018), validation (2019), and test
+(2020–2021) sets to evaluate the performance of the models. The implementation of
+RF, SVM, and AdaBoost is done using Python Scikit-learn library [30] and LSTM
+is implemented using Tensorflow library [31].
+We conducted hyperparameter tuning utilizing the Grid- Search tool in Python
+[30], employing cross-validation to identify the optimal input parameters for the
+models, as shown in Table 1. The LSTM network is a one-layer LSTM with 128
+nodes followed by a Dense layer. The LSTM layer employs its standard activation
+structure, where the cell state is updated using a tanh activation and the gating
+mechanisms use sigmoid functions. Adam optimizer is used with a learning rate of
+0.001 and a batch size of 128.
+Table 1: Cross-Validation Hyper-Parameters Selection
+Hyper-Parameter
+RF
+SVM
+AdaBoost
+Kernel
+rbf
+Learning Rate
+-
+-
+0.001
+Estimators
+4
+-
+120
+Loss
+square
+C
+-
+10
+-
+Max Depth
+100
+-
+-
+Gamma
+-
+0.001
+-
+Fig. 7 illustrates the correlation analysis between socio-economic, infrastructure
+features and power outages. Higher mean income, lower unemployment rate, and
+more extensive infrastructure, including towers, lines, transformers, and poles, are
+associated with lower outages, suggesting that wealthier counties or those with more
+16
+infrastructure might have higher power systems resilience. Substations and the year
+of structure construction also show a slight correlation, indicating newer or more
+substations may lead to improved outage resistance.
+Figure 7: Pearson’s correlation of the customers outage number with the infrastruc-
+ture and socio-economic variables.
+We also conducted a feature importance analysis using the RF-based Mean De-
+crease in Impurity (MDI). Fig. 8 depicts the contribution of each feature to the
+model’s predictive accuracy.
+The analysis showed that weather variables domi-
+nate outage prediction, with precipitation (19%), wind speed (13.5%), and surface
+pressure (13.1%) being the top contributors. Non-weather features, including in-
+frastructure density (3.5%) and socioeconomic indicators such as average income
+(1.4%), also exhibit contribution to the prediction.
+Figure 8: Features importance across weather, infrastructure, and socioeconomic
+variables.
+17
+After these relationships are established, the models are trained using different
+combinations of input data, both with and without the inclusion of socioeconomic,
+infrastructure, and weather features, so that the influence of each data layer on
+predictive performance can be examined.
+By comparing model accuracy across
+these configurations, the added value of these additional features is evaluated, and
+their overall impact on the outage prediction process is determined.
+Scenario-1 =
+ Po(t −1), Po(t −2), · · · , Po(t −n),
+W(t), W(t −1), · · · , W(t −n)
+
+Scenario-2 =
+ Po(t −1), Po(t −2), · · · , Po(t −n),
+W(t), W(t −1), · · · , W(t −n), S, If
+
+Scenario 1 uses weather data from the event day and the preceding day, together
+with outage information from the day before the extreme event and seasonal weather
+patterns. This configuration enables the models to utilize historical outage behavior
+along with weather conditions to estimate future outages. Scenario 2 expands upon
+this by incorporating all data used in Scenario 1 together with infrastructure and
+socioeconomic information.
+Table 2: Performance Comparison of Models in Scenario-1 and Scenario-2.
+Model
+Scenario-1
+Scenario-2
+MSE
+MAE
+MSE
+MAE
+RF
+0.0231
+0.0898
+0.0222
+0.0827
+SVM
+0.0175
+0.0796
+0.0172
+0.0774
+AdaBoost
+0.0210
+0.0735
+0.0204
+0.0730
+LSTM
+0.0127
+0.0749
+0.0086
+0.0432
+Table. 2 presents the performance of each model and shows that the scenario
+incorporating socioeconomic and infrastructure information produces lower predic-
+tion error. This outcome provides evidence that incorporating socioeconomic and
+infrastructure variables enhances the model’s predictive capability.
+18
+Figure 9: Performance comparison between models in terms of MSE.
+Fig. 10 illustrates the performance of the model by comparing the predicted out-
+age values with the actual recorded values for LSTM model. Each point represents
+a data sample from the validation period, and the diagonal line indicates the ideal
+one to one correspondence between predicted and observed outages. As shown in
+the figure, the majority of the predictions follow the general upward trend of the
+reference line.
+Figure 10: Scatter-plots of predicted versus actual customer outage for LSTM model.
+Fig. 11 illustrates the comparison between the predicted and actual customer
+outage counts for the June 6–8, 2020 flood event in Wayne County, Michigan using
+four models: RF, SVM, AdaBoost, and LSTM. The time series plots show how well
+each model follows the temporal evolution and magnitude of the observed outages.
+Among the four models, the LSTM provides the closest match to the actual outage
+19
+pattern. This indicates that the LSTM is able to effectively exploit temporal depen-
+dencies in the sequence of weather and related features during the event window.
+The Random Forest model also exhibits good performance. The AdaBoost model
+shows moderate agreement with the actual outages. The SVM model presents the
+weakest performance among the four.
+The performance of our proposed outage prediction framework is also compared
+with state-of-the-art studies in Table 3. To ensure fairness, the comparison is limited
+to works that employed the EAGLE-I dataset as the primary source of historical out-
+age records. Table 3 highlights that prior studies either rely on limited feature sets
+or provide low-resolution prediction outputs, such as maximum or averages outage
+customers number. In contrast, our method integrates weather, socio-economic, in-
+frastructure, and seasonal indicators to deliver accurate county-level, hourly outage
+predictions during extreme events.
+(a) RF prediction vs. actual outages
+(b) SVM prediction vs. actual outages
+(c) AdaBoost prediction vs. actual outages
+(d) LSTM prediction vs. actual outages
+Figure 11: Comparison of predicted and actual outage counts for the June 2020
+flood event in Wayne County.
+Given that this model is primarily trained on data from extreme weather and
+socio-economic features, it is well-suited to be used for planning to enhance the
+20
+Table 3: Comparison of Proposed Work With State-of-the-Art Studies.
+Study
+Dataset
+Features
+Used
+Best Model
+Prediction
+Resolution
+Lee
+et
+al. [12]
+EAGLE-I
++
+NWS alerts
+Weather
+fea-
+tures only
+XGBoost
+(R2
+=
+0.998,
+RMSE = 2115
+customers)
+Event-level max-
+imum
+outage
+prediction;
+No
+hourly
+or
+county-level
+resolution
+Cruz et
+al. [11]
+EAGLE-I
++
+NASA
+weather
++
+Census data
+Weather
++
+Socio-
+economic
+RF:
+MSE
+=
+5.93e-05
+MAE = 0.00102
+RMSE
+=
+0.00770
+Next-day
+av-
+erage
+outage
+prediction;
+Not
+high-
+resolution
+Our
+Work
+(Pro-
+posed)
+EAGLE-I
++
+Open-Meteo
++
+Census
++
+Infrastructure
+Weather
++
+Socio-
+economic
++
+Infrastructure
++
+Seasonal
+indicators
+LSTM
+(MSE = 0.0086,
+MAE = 0.0432)
+County-level,
+hourly
+outage
+prediction
+dur-
+ing
+extreme
+events
+resilience of power systems. Planning can be done through simulating the system’s
+performance across a range of severe weather scenarios.
+5. Conclusions
+In this paper, we presented a novel machine learning–based approach for pre-
+dicting power outages caused by LPHC events. The method integrated historical
+outage data from the EAGLE-I dataset, weather data from Open-Meteo, as well as
+infrastructure and socio-economic information to construct predictive models. We
+addressed the challenges of limited data availability and missing records for LPHC
+events by applying KNN and SMOGN methods. We showed the correlations be-
+tween socio-economic and infrastructure features with extreme power outages. Sev-
+eral machine learning models, including RF, SVM, AdaBoost, and LSTM networks,
+were compared. The experimental evaluation on Michigan counties demonstrated
+that the LSTM model consistently outperformed RF, AdaBoost, and SVM in terms
+of lowest error. Our analysis indicated that weather-related variables—particularly
+21
+precipitation and wind speed were the primary drivers of outages, while infrastruc-
+ture and socio-economic factors exerted secondary influences. This model can be
+adapted to other regions by incorporating localized data, including region-specific
+weather patterns and infrastructure conditions as well as local social-economic in-
+formation. Similarly, extending the model to handle other types of extreme events
+(e.g., wildfires and earthquakes) could be achieved by adding relevant features and
+retraining the model on new data.
+References
+[1] Y. Xu, Y. Xing, Q. Huang, J. Li, G. Zhang, O. Bamisile, and Q. Huang, “A
+review of resilience enhancement strategies in renewable power system under
+HILP events,” Energy Reports, vol. 9, pp. 200–209, 2023.
+[2] “Texas’s Winter Storm Killed Hundreds More Than Reported,” 2022, accessed
+on: 7 December 2022. Available: https://www.buzzfeednews.com/article/
+peteraldhous/texas-winter-storm-power-outage-death-toll.
+[3] “Texas Power Outages Led to Carbon Monoxide Poisoning Catastrophe,” 2021,
+accessed on: 7 December 2022. Available: https://www.texastribune.org/
+2021/04/29/texas-carbon-monoxide-poisoning/.
+[4] A. Daeli and S. Mohagheghi, “Power grid infrastructural resilience against ex-
+treme events,” Energies, vol. 16, no. 1, p. 64, 2022.
+[5] R. Eskandarpour and A. Khodaei, “Machine learning based power grid out-
+age prediction in response to extreme events,” IEEE Transactions on Power
+Systems, vol. 32, no. 4, pp. 3315–3316, 2016.
+[6] S. Yang, W. Zhou, S. Zhu, L. Wang, L. Ye, X. Xia, and H. Li, “Failure prob-
+ability estimation of overhead transmission lines considering the spatial and
+temporal variation in severe weather,” Journal of Modern Power Systems and
+Clean Energy, vol. 7, no. 1, pp. 131–138, 2019, doi: 10.1007/s40565-017-0370-4.
+[7] K. Udeh, D. W. Wanik, D. Cerrai, D. Aguiar, and E. Anagnostou, “Autoregres-
+sive modeling of utility customer outages with deep neural networks,” in 2022
+IEEE 12th Annual Computing and Communication Workshop and Conference
+(CCWC), 2022, pp. 0406–0414.
+[8] J. Garland and B. Livneh, “Weather-Induced Power Outage Prediction: A Com-
+parison of Machine Learning Models,” in 2023 IEEE International Conference
+on Communications, Control, and Computing Technologies for Smart Grids
+(SmartGridComm), 2023, pp. 1–6.
+22
+[9] R. Eskandarpour and A. Khodaei, “Leveraging accuracy-uncertainty tradeoff
+in SVM to achieve highly accurate outage predictions,” IEEE Transactions on
+Power Systems, vol. 33, no. 1, pp. 1139–1141, 2017.
+[10] Y. Yao, W. Liu, R. Jain, S. Madasthu, B. Chowdhury, and R. Cox, “Out-
+age Forecast-based Preventative Scheduling Model for Distribution System Re-
+silience Enhancement,” in 2023 IEEE Power & Energy Society General Meeting
+(PESGM), 2023, pp. 1–5.
+[11] E. Cruz and T. Munasinghe, “Exploring Power Outage Prediction Using
+Weather and Socioeconomic Data in the Southeastern Part of the United
+States,” in 2023 IEEE International Conference on Big Data (BigData), 2023,
+pp. 6138–6142.
+[12] S. M. Lee, J. Y. Choi, G. Jung, A. Tabassum, N. Stenvig, and S. Chinthavali,
+“Predicting Power Outage During Extreme Weather with EAGLE-I and NWS
+Datasets,” Tech. Rep., Oak Ridge National Laboratory (ORNL), Oak Ridge,
+TN (United States), 2023.
+[13] A. Arif and Z. Wang, “Distribution network outage data analysis and repair
+time prediction using deep learning,” in 2018 IEEE International Conference
+on Probabilistic Methods Applied to Power Systems (PMAPS), 2018, pp. 1–6.
+[14] A. Jaech, B. Zhang, M. Ostendorf, and D. S. Kirschen, “Real-time prediction
+of the duration of distribution system outages,” IEEE Transactions on Power
+Systems, vol. 34, no. 1, pp. 773–781, 2018.
+[15] H. Sun, Z. Wang, J. Wang, Z. Huang, N. Carrington, and J. Liao, “Data-driven
+power outage detection by social sensors,” IEEE Transactions on Smart Grid,
+vol. 7, no. 5, pp. 2516–2524, 2016.
+[16] A. I. Sarwat, M. Amini, A. Domijan, A. Damnjanovic, and F. Kaleem,
+“Weather-based interruption prediction in the smart grid utilizing chronologi-
+cal data,” Journal of Modern Power Systems and Clean Energy, vol. 4, no. 2,
+pp. 1–8, 2016, doi: 10.1007/s40565-015-0120-4.
+[17] W. Huang, W. Zhang, Q. Chen, B. Feng, and X. Li, “Prediction algorithm for
+power outage areas of affected customers based on CNN-LSTM,” IEEE Access,
+2024.
+[18] M. Abaas, R. A. Lee, and P. Singh, “Long short-term memory customer-centric
+power outage prediction models for weather-related power outages,” in 2022
+IEEE Green Energy and Smart System Systems (IGESSC), 2022, pp. 1–6.
+[19] X. Wang, N. Fatehi, C. Wang, and M. H. Nazari, “Deep Learning-Based
+Weather-Related Power Outage Prediction with Socio-Economic and Power In-
+frastructure Data,” in 2024 IEEE Power & Energy Society General Meeting
+(PESGM), 2024, pp. 1–5, doi: 10.1109/PESGM51994.2024.10688596.
+23
+[20] A. K. Onaolapo, R. P. Carpanen, D. G. Dorrell, and E. E. Ojo, “Event-driven
+power outage prediction using collaborative neural networks,” IEEE Transac-
+tions on Industrial Informatics, vol. 19, no. 3, pp. 3079–3087, 2022.
+[21] M. R. Allen-Dumas, S. Lee, and S. Chinthavali, “Analysis of Correlation be-
+tween Cold Weather Meteorological Variables and Electricity Outages,” in 2022
+IEEE International Conference on Big Data (Big Data), 2022, pp. 3398–3401.
+[22] C. Brelsford, S. Tennille, A. Myers, S. Chinthavali, V. Tansakul, M. Denman,
+M. Coletti, J. Grant, S. Lee, K. Allen, et al., “A dataset of recorded electricity
+outages by United States county 2014–2022,” Scientific Data, vol. 11, no. 1,
+p. 271, 2024.
+[23] M. Abdelmalak, J. Cox, S. Ericson, E. Hotchkiss, and M. Benidris, “Quantita-
+tive resilience-based assessment framework using EAGLE-I power outage data,”
+IEEE Access, vol. 11, pp. 7682–7697, 2023.
+[24] A. K. Biswas, H. Varmazyari, and M. H. Nazari, “Data-Driven Energy Re-
+silience Assessment and Enhancement in Urban Communities: A Case Study
+in Detroit,” Available at SSRN 5151316.
+[25] OpenStreetMap contributors, “Planet dump retrieved from https://planet.
+osm.org,”
+2023,
+accessed on Oct. 24,
+2023. Available:
+https://www.
+openstreetmap.org.
+[26] M. Mohammadian, F. Aminifar, N. Amjady, and M. Shahidehpour, “Data-
+driven classifier for extreme outage prediction based on Bayes decision theory,”
+IEEE Transactions on Power Systems, vol. 36, no. 6, pp. 4906–4914, 2021.
+[27] P. Branco, L. Torgo, and R. P. Ribeiro, “SMOGN: a pre-processing approach
+for imbalanced regression,” in First International Workshop on Learning with
+Imbalanced Domains: Theory and Applications, PMLR, 2017, pp. 36–50.
+[28] N. Fatehi, Applied machine learning methods for improving energy efficiency
+and assessing resilience in smart power grids, Ph.D. dissertation, Wayne State
+University, Detroit, USA, 2025.
+[29] V. Plevris, G. Solorzano, N. P. Bakas, and M. E. A. Ben Seghier, “Investiga-
+tion of performance metrics in regression analysis and machine-learning-based
+prediction models,” in 8th European Congress on Computational Methods in
+Applied Sciences and Engineering (ECCOMAS Congress 2022), 2022.
+[30] F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel,
+M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, et al., “Scikit-learn: Ma-
+chine learning in Python,” Journal of Machine Learning Research, vol. 12,
+pp. 2825–2830, 2011.
+[31] M. Abadi, A. Agarwal, P. Barham, E. Brevdo, Z. Chen, C. Citro, G. S. Corrado,
+A. Davis, J. Dean, M. Devin, et al., “TensorFlow: Large-scale machine learning
+on heterogeneous systems,” 2015.
+24

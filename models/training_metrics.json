@@ -1,0 +1,9 @@
+{
+    "accuracy": 0.6463522990052646,
+    "outage_class_recall": 0.6270608057670569,
+    "outage_class_precision": 0.21923538666885398,
+    "outage_class_f1": 0.3248836978021371,
+    "normal_class_recall": 0.6493811781724664,
+    "normal_class_precision": 0.9172894632281989,
+    "scale_pos_weight_used": 6.369146196460658
+}

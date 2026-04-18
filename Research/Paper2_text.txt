@@ -1,0 +1,513 @@
+Deep Learning-Based Weather-Related Power
+Outage Prediction with Socio-Economic and Power
+Infrastructure Data
+Xuesong Wang, Nina Fatehi, Caisheng Wang*, Masoud H. Nazari
+Department of Electrical and Computer Engineering, Wayne State University, Detroit, MI, USA
+xswang@wayne.edu, nina.fatehi@wayne.edu, cwang@wayne.edu, masoud.nazari@wayne.edu
+Abstract—This paper presents a deep learning-based approach
+for hourly power outage probability prediction within census
+tracts encompassing a utility company’s service territory. Two
+distinct deep learning models, conditional Multi-Layer Percep-
+tron (MLP) and unconditional MLP, were developed to forecast
+power outage probabilities, leveraging a rich array of input
+features gathered from publicly available sources including
+weather data, weather station locations, power infrastructure
+maps, socio-economic and demographic statistics, and power
+outage records. Given a one-hour-ahead weather forecast, the
+models predict the power outage probability for each census tract,
+taking into account both the weather prediction and the location’s
+characteristics. The deep learning models employed different loss
+functions to optimize prediction performance. Our experimental
+results underscore the significance of socio-economic factors in
+enhancing the accuracy of power outage predictions at the census
+tract level.
+Index Terms—deep learning, power infrastructure, power out-
+age, prediction, socio-economic
+I. INTRODUCTION
+Modern societies heavily rely on the power grid to supply
+continuous power to consumers. Power outages can cause
+serious and enormous costs. Extreme weather and natural
+disasters, such as hurricanes, wildfires, and floodings, are in-
+evitable, which disturb the normal operation of power systems.
+According to [1], 44%-78% of the reported power grid outages
+are weather-related, and the cost estimates from storm-related
+outages to the U.S. economy are between $20 and $55 billion
+annually. Therefore, rapid response to such events is crucial.
+The response includes preparing for and adapting to changes as
+well as quick recovery and restoration from major disruptions
+[2]. Therefore, there is a significant need to accurately forecast
+the extreme event impacts on the power grid so that utility
+crews can be dispatched during or even before the events and
+that long-term hardening approaches can be carried out in less
+resilient communities.
+Deep learning (DL) based models have also been pro-
+posed to predict power outages. A Recurrent Neural Network
+(RNN) is developed in [3] to predict outage duration by
+capturing temporal patterns in the outage data during extreme
+weather events. Long Short-Term Memory (LSTM) models
+are also developed to predict power load and power outage
+*Corresponding author.
+probability [4]. In [5], authors compare the performances of
+different classification models for power outage prediction,
+e.g., Random Forest, Multi-Layer Perceptron (MLP), Support
+Vector Machine, K-Nearest Neighbor (KNN), AdaBoost, and
+Quadratic Discriminant Analysis models. The authors of [6]
+combine Convolutional Neural Network (CNN) and LSTM to
+predict outages for 10 randomly selected counties across New
+York State.
+Recently, conditional models have attracted much attention
+in AI Generated Content (AIGC) [7], [8]. In conditional
+models, a condition is given to the model to modulate the
+base features. In the weather-related power outage prediction,
+weather data is the base input, and the characteristics of the
+location are the condition [9], [10]. Different local conditions,
+e.g., infrastructure age and soil conditions, should lead to
+various outage probabilities under the same weather condition.
+The inputs to the models in the power outage prediction
+context usually include weather information, power system
+details, environmental conditions, and demographic data [9].
+In [11], wind speed and the distance of each component from
+the center of hurricane are used. A derived resiliency index
+for each component is utilized in [12]. To predict power load,
+historical power load data are utilized in [4]. To study the
+socio-economic impacts on electricity-vulnerable population
+groups, e.g., household income and racial demographics, au-
+thors of [13] designed an interactive tool to collect, analyze
+and predict power outages in New York City. In power outage
+prediction, various targets are employed, such as power outage
+occurrence (outage or non-outage) [5], number of customers
+who lose power [9] and the ratio of power outage customers
+over the population [10]. Sparsity or unbalanced data is
+an issue in power outage prediction. To address it, authors
+of [14] propose a Majority Under-Sampling and Minority
+Over-Sampling strategy to balance the non-outage and outage
+samples.
+In this paper, we consider two deep learning models, an
+unconditional MLP and a conditional MLP, to predict the
+number of customers who lose power in an hourly resolution,
+normalized by the population of the census tracts. We show
+the effectiveness of the conditional model in power outage
+predictions. For the input data, we consider not only weather
+features, but also the characteristics of the communities (cen-
+arXiv:2404.03115v1  [cs.LG]  3 Apr 2024
+sus tracts) in the DTE Energy service territory and show how
+socio-economic factors impact the power outage predictions.
+We also propose using cross-entropy loss function and assign-
+ing a large weight to the outage class to mitigate the class
+imbalance issue in the dataset and compare the performance
+of the weighted cross entropy loss and an exponential loss
+on both models. Therefore, our main contribution can be
+summarized as follows:
+• We have developed two deep learning models, an uncon-
+ditional MLP and a conditional MLP, to predict power
+outage probability with census tract characteristics as the
+conditional input.
+• We have compared the performance of the conditional
+MLP with unconditional MLP under two different loss
+functions: a weighted cross entropy loss and an exponen-
+tial loss.
+• We have investigated the impact of socio-economic fac-
+tors as well as power infrastructure features on power
+outage frequencies. The results show that these factors
+effectively reduce the error rate in the proposed models.
+The remaining sections are arranged as follows: In Section
+II, the data collection and preprocessing are discussed. This is
+followed by the introduction of the proposed power outage
+prediction method in section III. Section IV presents the
+performance comparison between the conditional and uncon-
+ditional models and various input factors. In Section V, the
+conclusion is summarized.
+II. DATA COLLECTION AND PREPROCESSING
+A. Outage Data
+The area under investigation encompasses the DTE’s service
+territory in Michigan. Through DTE’s Outage Management
+System interface, outage data from Feb. 27, 2023 to Sep. 30,
+2023 were collected every 15 minutes. For each power outage
+event, we take its first occurrence as the start time and the
+last occurrence as the end time. As the spatial coverage and
+number of customers may change during the event period, we
+take the largest spatial coverage and the maximum number
+of customers during its period as its coverage and affected
+customers, respectively. To align the power outage events to
+the census tract level, a pairwise intersection operation is
+executed in ArcGIS Pro, distributing the affected customers
+proportionally. The average power outage duration in hours per
+capita for each census tract is shown in Fig. 1. After removing
+all the power outage events affecting less than or equal to 1
+customer, we count the number of customers that lost power in
+each hour in the studied period. In total, 1,102 census tracts
+are selected, and for each census tract, 5,184 hourly power
+outage probabilities are calculated. Note that outages usually
+occur after storms or high wind gusts, resulting in the sparsity
+of outages in the dataset, i.e., on average 26 out of 5184 hours
+are outage hours for all census tracts.
+In cases where the number of affected customers surpasses
+the population count of the respective census tract, we assign
+a probability value of 1. Note that while certain power outage
+Fig. 1. The average power outage duration in hours per capita for each census
+tract.
+Fig. 2. Histogram of the causes of the power outage events.
+events may not be solely attributed to weather conditions, we
+retain them in the dataset for two primary reasons. Firstly, the
+majority of identified event causes are weather-related, such as
+wind or ice impacts. Secondly, a substantial number of events
+lack a definitive cause within the records, as illustrated in
+Fig. 2. We consider the variability present in the power outage
+data as a form of data augmentation and a regularization
+mechanism for our model.
+B. Weather and Weather Station Data
+The historical hourly weather data are collected from Au-
+tomated Surface Observing System (ASOS).1 We select 10
+features from hourly observations, including air temperature,
+relative humidity, pressure altimeter, wind speed and direction,
+etc. Regarding temperature, humidity, and air pressure data,
+missing values are addressed through temporal interpolation.
+As for the remaining features, any missing values are filled
+with zeros. In cases where observations are missing, we
+employ the average of the available data from other weather
+stations. Subsequently, the data is normalized by mean and
+standard deviation.
+C. Power Infrastructure Data
+The power infrastructure data are collected from Open Street
+Map dataset [15], as shown in Fig. 3. All nodes in the studied
+1Downloaded from https://mesonet.agron.iastate.edu/ASOS/
+area that have attribute ”power” are collected. The types of
+nodes include compensator, generator, insulator, line, pole,
+portal, substation, switch, terminal, tower, and transformer.
+The number of each feature is counted for census tracts
+using ArcGIS Pro. Note that this dataset may not ensure
+data completeness. Nonetheless, we consider the inherent
+noise within the data as a form of data augmentation and
+a regularization technique for our model. Since the detailed
+topology of the power distribution network is usually not
+publicly available, the Open Street Map data [15] can serve
+as a good approximation of the true topology for research
+purposes.
+D. Socio-economic and Demographic Data
+Even when exposed to identical weather conditions, census
+tracts with varying levels of resilience are likely to encounter
+distinct degrees of power outages. For each census tract, we
+collect the following data from the U.S. Census Bureau:
+• Total population in 2020
+• Household income distribution estimated in 2021
+• Distribution of year structure built estimated in 2021
+The household income and year structure built data include
+both estimations and margins of error. Prior to normalizing
+the distribution with Softmax, we employ a data augmentation
+technique during model training. This augmentation involves
+generating a uniform distribution based on the mean and
+margin of error for each data bin.
+III. PROPOSED POWER OUTAGE PREDICTION METHOD
+We design two model structures, i.e., unconditional and
+conditional models. For each model, we utilize two loss
+functions, i.e., exponential loss and cross entropy loss. In the
+following subsections, we elaborate the proposed models.
+A. Conditional MLP Structure
+The conditional model comprises two primary branches, as
+illustrated in Fig. 4. The first branch takes weather features
+and the distances between weather stations and the census
+tract as the input. These inputs are then processed through
+Fig. 3. Power infrastructure components in the studied area.
+several linear and non-linear layers. The second branch re-
+ceives four types of inputs: 1) household income distribution,
+2) year structure built distribution, 3) power infrastructure
+distribution, and 4) totals (including the total population,
+total households, total houses, and total power infrastructure
+components). These inputs are then processed through a series
+of linear and non-linear layers. The output vector generated
+by the second branch undergoes a transformation involving
+two sets of layers, resulting in a scale vector and a bias
+vector. These two vectors are then applied to the output of
+the first branch using (1), and the resulting output is further
+processed by the final output layer. This design is driven
+by the concept that, when confronted with identical weather
+conditions, the model should adapt the influence of weather
+on the power outage probability for a given census tract
+based on its infrastructure conditions. These conditions can be
+characterized by features such as the distribution of structure
+built years and the attributes of power infrastructure.
+Fout = Fin ∗scale + bias
+(1)
+B. Unconditional MLP Structure
+The unconditional model concatenates all input features
+into a 1-D vector, subsequently passing it through a series of
+alternating linear and non-linear layers. These layers exhibit
+a monotonically decreasing number of neurons in each layer.
+The structure is shown in Fig. 5.
+C. Power Outage Probability Prediction
+The prediction target is the probability of power outage
+where the values are between 0 and 1. One can naturally think
+of using cross entropy loss. Because of the imbalance between
+outage and non-outage classes, we put a large weight on the
+outage class. The outputs of both models go through a Softmax
+layer and the cross entropy losses are calculated by (2), where
+N is the number of samples in the training set, Pgt,0 and
+Ppred,0 are the probability of non-outage from ground truth
+and model prediction, respectively. Also, Pgt,1 and Ppred,1
+Fig. 4. Structure of the conditional model, d out=1 for the exponential loss
+and d out=2 for the weighed cross entropy loss
+Fig. 5.
+Structure of the unconditional model, d out=1 for the exponential
+loss and d out=2 for the weighed cross entropy loss
+Start
+Initialize 
+ in 
+No
+ converged?
+ = 
+(data)
+ = 
+ = 
+End
+Yes
+: Model
+: Model parameters
+: Loss function
+: Learning rate
+: Ground truth
+Fig. 6. Model training using back propagation.
+are the probability of outage from ground truth and model
+prediction, and w is the weight for the outage class (w = 500
+in our case).
+L = −1
+N
+X
+[Pgt,0 log Ppred,0 + w ∗Pgt,1 log Ppred,1]
+(2)
+The second loss function employed is an exponential loss
+function, as depicted in (3). Here, Pgt and Ppred represent the
+probability of power outage in the ground truth and the model
+prediction, respectively. The parameter β serves as a scaling
+factor to penalize substantial disparities between the prediction
+and ground truth (in our instance, β is set to 20).
+L = 1
+N
+X
+e|Pgt−Ppred|∗β
+(3)
+Both models are trained using back propagation as shown
+in Fig. 6.
+D. Evaluation Metrics
+Because the outputs of Sigmoid and Softmax layers cannot
+reach 0, model outputs under 0.05 are set to 0 before evalu-
+TABLE I
+EVALUATION METRICS OF DIFFERENT MODELS AND LOSS FUNCTIONS
+Model
+Loss Function
+MAE
+RMSE
+unconditional
+exponential
+0.01346(6.8e-3)
+0.04773(1.5e-2)
+conditional
+exponential
+0.0189(6.5e-3)
+0.04824(5.2e-3)
+unconditional
+cross entropy
+0.03243(7.1e-4)
+0.1179(2.2e-3)
+conditional
+cross entropy
+0.0281(1.3e-3)
+0.1131(4.4e-3)
+ation. We use Mean Absolute Error (MAE) and Root Mean
+Squared Error (RMSE) to evaluate the model’s performance,
+as shown in (4) and (5).
+MAE = 1
+N
+X
+|Pgt −Ppred|
+(4)
+RMSE =
+r
+1
+N
+X
+|Pgt −Ppred|2
+(5)
+IV. EXPERIMENT RESULTS
+We partitioned the census tracts in the study area into three
+subsets: 72% for the training set, 8% for the validation set, and
+20% for the test set. Our evaluation metrics are reported based
+on the test sets. The results were averaged over three separate
+runs, showcasing both the mean and standard deviations. As
+observed in Table I, when the exponential loss function is used,
+the unconditional model exhibits lower error, whereas with
+the cross-entropy loss, the conditional model demonstrates
+superior performance. The variation in performance between
+the two models may stem from the choice of hyper-parameters,
+such as the selection of the parameter w in the cross-entropy
+loss and β in the exponential loss.
+Predictions of both models using exponential loss for one
+of the census tracts are shown in Fig. 7. As illustrated in
+Fig. 7, false positive is the main source of error due to
+the data imbalance. A two-stage model might reduce the
+false positive prediction by first classifying the outage status
+(outage or non-outage) then estimating the outage customer
+number. Moreover, a Majority Under-Sampling and Minority
+Over-Sampling strategy can be utilized to overcome the class
+imbalance problem [14].
+To investigate the impacts of different factors on the model
+performance, we conducted an ablation study on the uncondi-
+tional model. We gradually add more features into the model
+input and see the performance variations of the model. The
+mean and standard deviation of three runs are reported. The
+results are shown in Table II. The inclusion of additional fea-
+tures leads to a reduction in prediction errors. The variability
+in results for models employing the exponential loss could
+potentially be attributed to noise in the household income,
+year structure built, and power infrastructure distribution data.
+V. CONCLUSION
+This paper devised both unconditional and conditional mod-
+els to predict power outage probabilities at the census tract
+level. To mitigate unbalanced data issue, two distinct loss
+functions were implemented: exponential loss and weighted
+TABLE II
+ABLATION STUDY OF DIFFERENT INPUT FACTORS
+Input Factors
+Exponential
+Cross Entropy
+Weather
+Distance
+Totals
+Income
+Year Built
+Power Infra
+MAE
+RMSE
+MAE
+RMSE
+✓
+0.03547(7.3e-3)
+0.0703(4.5e-3)
+0.04901(3.5e-3)
+0.127(5.6e-3)
+✓
+✓
+0.01916(1.0e-2)
+0.05018(1.2e-2)
+0.03652(1.6e-3)
+0.1231(3.8e-3)
+✓
+✓
+✓
+0.01015(4.3e-3)
+0.03777(8.7e-3)
+0.03662(3.1e-3)
+0.1239(5.8e-3)
+✓
+✓
+✓
+✓
+0.01376(4.4e-3)
+0.04874(1.0e-2)
+0.0355(2.5e-3)
+0.1233(5.4e-3)
+✓
+✓
+✓
+✓
+✓
+0.01413(6.5e-3)
+0.04848(1.0e-2)
+0.03235(2.6e-3)
+0.1178(4.6e-3)
+✓
+✓
+✓
+✓
+✓
+✓
+0.01346(6.8e-3)
+0.04773(1.5e-2)
+0.03243(7.1e-4)
+0.1179(2.2e-3)
+Fig. 7.
+Predictions of both models using exponential loss for one of the
+census tracts.
+cross entropy loss. The results showed that using the ex-
+ponential loss results in 5% less MAE in the unconditional
+model than the conditional model; however, the weighted cross
+entropy loss showed 0.4% less MAE in the conditional model
+than the unconditional model. Furthermore, the ablation study,
+conducted to investigate the impact of various input features
+on the model performance, showed that incorporating socio-
+economic factors and power infrastructure features reduced the
+model’s prediction error and, therefore, had a positive impact
+on the power outage probability prediction.
+Future research avenues may involve further feature inte-
+gration into the model, exploring the application of LSTM to
+leverage historical power outage patterns, or transitioning to
+a broader city or county-level analysis as a means to partially
+address the data imbalance issue encountered at the finer-
+grained census tract level.
+ACKNOWLEDGMENT
+We express our gratitude to Mark Furland for generously
+supplying the historical DTE outages data.
+This material is based upon work supported by the Depart-
+ment of Energy, Solar Energy Technologies Office (SETO) Re-
+newables Advancing Community Energy Resilience (RACER)
+program under Award Number DE-EE0010413. Any opinions,
+findings, conclusions, or recommendations expressed in this
+material are those of the authors and do not necessarily reflect
+the views of the Department of Energy.
+REFERENCES
+[1] R. J. Campbell and S. Lowry, “Weather-related power outages and
+electric system resiliency,” tech. rep., Congressional Research Service,
+Library of Congress Washington, DC, 2021.
+[2] M. M. Hosseini and M. Parvania, “Artificial intelligence for resilience
+enhancement of power distribution systems,” The Electricity Journal,
+vol. 34, no. 1, p. 106880, 2021.
+[3] A. Jaech, B. Zhang, M. Ostendorf, and D. S. Kirschen, “Real-time
+prediction of the duration of distribution system outages,” IEEE Trans-
+actions on Power Systems, vol. 34, no. 1, pp. 773–781, 2018.
+[4] M. Abaas, R. A. Lee, and P. Singh, “Long short-term memory customer-
+centric power outage prediction models for weather-related power out-
+ages,” in 2022 IEEE Green Energy and Smart System Systems (IGESSC),
+pp. 1–6, 2022.
+[5] Y. Kor, M. Z. Reformat, and P. Musilek, “Predicting weather-related
+power outages in distribution grid,” in 2020 IEEE Power and Energy
+Society General Meeting (PESGM), pp. 1–5, 2020.
+[6] K. Udeh, D. W. Wanik, D. Cerrai, D. Aguiar, and E. Anagnostou,
+“Autoregressive modeling of utility customer outages with deep neural
+networks,” in 2022 IEEE 12th Annual Computing and Communication
+Workshop and Conference (CCWC), pp. 0406–0414, 2022.
+[7] L. Zhang, A. Rao, and M. Agrawala, “Adding conditional control
+to text-to-image diffusion models,” in Proceedings of the IEEE/CVF
+International Conference on Computer Vision, pp. 3836–3847, 2023.
+[8] T. Karras, S. Laine, and T. Aila, “A style-based generator architecture
+for generative adversarial networks,” in Proceedings of the IEEE/CVF
+conference on computer vision and pattern recognition, pp. 4401–4410,
+2019.
+[9] P. Arora and L. Ceferino, “Probabilistic and machine learning methods
+for uncertainty quantification in power outage prediction due to extreme
+events,” EGUsphere, pp. 1–29, 2022.
+[10] D. B. McRoberts, S. M. Quiring, and S. D. Guikema, “Improving
+hurricane power outage prediction models through the inclusion of local
+environmental factors,” Risk analysis, vol. 38, no. 12, pp. 2722–2737,
+2018.
+[11] R. Eskandarpour and A. Khodaei, “Machine learning based power grid
+outage prediction in response to extreme events,” IEEE Transactions on
+Power Systems, vol. 32, no. 4, pp. 3315–3316, 2016.
+[12] A. Imteaj, M. H. Amini, and J. Mohammadi, “Leveraging decentralized
+artificial intelligence to enhance resilience of energy networks,” in 2020
+IEEE Power and Energy Society General Meeting (PESGM), pp. 1–5,
+IEEE, 2020.
+[13] S. Eckstrom, G. Murphy, E. Ye, S. Acharya, R. Mieth, and Y. Dvorkin,
+“Outing power outages: Real-time and predictive socio-demographic
+analytics for new york city,” in 2022 IEEE Power and Energy Society
+General Meeting (PESGM), pp. 1–5, 2022.
+[14] A. Bahrami, M. Shahidehpour, S. Pandey, W. Nation, K. DSouza, and
+H. Zheng, “Machine learning application to extreme weather power
+outage forecasting in distribution networks using a majority under-
+sampling and minority over-sampling strategy,” in 2023 IEEE Power
+and Energy Society General Meeting (PESGM), pp. 1–6, 2023.
+[15] OpenStreetMap
+contributors,
+“Planet
+dump
+retrieved
+from
+https://planet.osm.org,” 2023. Accessed on Oct. 24, 2023.
