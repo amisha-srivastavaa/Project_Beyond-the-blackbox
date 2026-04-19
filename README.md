@@ -229,7 +229,7 @@ Project_Beyond-the-blackbox/
 
 ## 👥 Team
 
-NSUT Project Team
+ Team Simplicity Paradox
 
 ---
 
